@@ -1,5 +1,5 @@
 # traceroute
-A simple implementation of the traceroute command in rust.
+A simple implementation of the traceroute command written in rust.
 
 The program prints the path taken through the IP network from the source to the destination host, each line coresponding to a network gateway (physical device).
 
