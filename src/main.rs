@@ -1,6 +1,5 @@
 extern crate pnet;
 extern crate libc;
-extern crate rand;
 extern crate dns_lookup;
 
 use std::io::{self, Write};
@@ -26,17 +25,16 @@ use pnet::{
         IcmpTransportChannelIterator,
     },
 };
-use rand::Rng;
 
 static MAX_TTL: u8 = 64;
 static TIMEOUT: u64 = 3;
 
+// Initialize an ICMP echo packet
 fn new_echo_packet(buf: &mut [u8], ttl: u8) -> MutableEchoRequestPacket {
     let mut p = MutableEchoRequestPacket::new(buf).expect("echo packet");
     p.set_icmp_type(icmp::IcmpTypes::EchoRequest);
     p.set_sequence_number(ttl.into());
-    let id = rand::thread_rng().gen_range(0, std::u16::MAX);
-    p.set_identifier(id);
+    p.set_identifier(std::process::id() as u16);
     p.set_payload(&[0u8; 16-8]);
     let cksum = checksum(&p.packet_mut(), 1);
     p.set_checksum(cksum);
@@ -48,6 +46,7 @@ fn time_diff(sent_at: Instant) -> f32 {
     diff.as_micros() as f32 / 1000.0
 }
 
+// Stores the ICMP channels
 struct Pinger<'a> {
     tx: TransportSender,
     rx: IcmpTransportChannelIterator<'a>,
@@ -58,6 +57,7 @@ impl<'a> Pinger<'a> {
         Pinger { tx, rx }
     }
 
+    // send and recieve an ICMP echo packet with the given ttl
     fn ping(&mut self, dst: &Ipv4Addr, ttl: u8) -> Result<(f32, IpAddr), io::Error> {
         let mut req_buf = [0u8; 64];
         let packet = new_echo_packet(&mut req_buf, ttl);
@@ -76,7 +76,7 @@ impl<'a> Pinger<'a> {
                         IcmpTypes::TimeExceeded => (),
                         IcmpTypes::EchoReply => {
                             let res = EchoReplyPacket::new(res.packet()).expect("echo packet");
-                            if res.get_identifier() != id {// TODO: validate cksum
+                            if res.get_identifier() != id { // TODO: validate cksum
                                 continue
                             }
                         }
@@ -90,6 +90,7 @@ impl<'a> Pinger<'a> {
     }
 }
 
+// Convert a duration to a C timeval
 fn duration_to_timeval(dur: Duration) -> libc::timeval {
     libc::timeval {
         tv_sec: dur.as_secs() as libc::time_t,
@@ -97,6 +98,7 @@ fn duration_to_timeval(dur: Duration) -> libc::timeval {
     }
 }
 
+// Set the socket's recieve timeout
 fn set_socket_receive_timeout(socket: libc::c_int, t: Duration) -> io::Result<()> {
     let ts = duration_to_timeval(t);
     let r = unsafe {
@@ -114,6 +116,7 @@ fn set_socket_receive_timeout(socket: libc::c_int, t: Duration) -> io::Result<()
     }
 }
 
+// Ping the destination with echo ICMP packets with increasing ttl and print a report
 fn traceroute(dst: Ipv4Addr, hostname: &str) -> Result<(), io::Error> {
     let protocol = Layer4(Ipv4(IpNextHeaderProtocols::Icmp));
     let (tx, mut rx) = transport_channel(1024, protocol)?;
