@@ -76,7 +76,7 @@ impl<'a> Pinger<'a> {
                         IcmpTypes::TimeExceeded => (),
                         IcmpTypes::EchoReply => {
                             let res = EchoReplyPacket::new(res.packet()).expect("echo packet");
-                            if res.get_identifier() != id { // TODO: validate cksum
+                            if res.get_identifier() != id && checksum(res.packet(), 1) == 0 {
                                 continue
                             }
                         }
