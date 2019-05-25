@@ -128,6 +128,7 @@ fn traceroute(dst: Ipv4Addr, hostname: &str) -> Result<(), io::Error> {
         hostname, dst, MAX_TTL, 64
     );
     for ttl in 1..MAX_TTL {
+        print!(" {:2}", ttl);
         for i in 0..3 {
             match pinger.ping(&dst, ttl) {
                 Ok((time, ip)) => {
@@ -135,9 +136,9 @@ fn traceroute(dst: Ipv4Addr, hostname: &str) -> Result<(), io::Error> {
                         let hostname = if let Ok(name) = dns_lookup::lookup_addr(&ip) {
                             name
                         } else {
-                            "???".to_string()
+                            "ip".to_string()
                         };
-                        print!(" {:2} {:} ({:}) {:}", ttl, hostname, ip, time);
+                        print!(" {:} ({:}) {:}", hostname, ip, time);
                     };
                     print!(" {:} ms ", time);
                     if i == 2 && ip == dst { // reached destination and did 3 rounds
