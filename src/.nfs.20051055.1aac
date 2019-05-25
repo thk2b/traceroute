@@ -38,13 +38,29 @@ use pnet::{
     },
 };
 
-static MAX_TTL: u8 = 64;
+static DEFAULT_TTL: u8 = 64;
+
+// struct EchoPacket { }
+
+// impl EchoPacket {
+//     fn new(buf: &mut [u8], ttl: u16) {
+//         let mut p = MutableEchoRequestPacket::new(buf).expect("echo packet");
+//         p.set_icmp_type(icmp::IcmpTypes::EchoRequest);
+//         p.set_sequence_number(ttl);
+//         p.set_identifier(1); // TODO
+//         p.set_payload(&[1u8; 16-8]); //TODO
+//         let cksum = checksum(&p.packet_mut(), 1);
+//         p.set_checksum(cksum);
+//         p
+//     }
+
+// }
 
 fn new_echo_packet(buf: &mut [u8], ttl: u8) -> MutableEchoRequestPacket {
     let mut p = MutableEchoRequestPacket::new(buf).expect("echo packet");
     p.set_icmp_type(icmp::IcmpTypes::EchoRequest);
     p.set_sequence_number(ttl.into());
-    p.set_identifier(1); // TODO: random?
+    p.set_identifier(1); // TODO
     let now = Instant::now();
     p.set_payload(&[0u8; 16-8]);
     let cksum = checksum(&p.packet_mut(), 1);
@@ -67,7 +83,7 @@ impl<'a> Pinger<'a> {
         Pinger { tx, rx }
     }
 
-    fn ping(&mut self, dst: &Ipv4Addr, ttl: u8) -> Result<(f32, IpAddr), io::Error> {
+    fn ping(&mut self, dst: &Ipv4Addr, ttl: u8) -> Result<f32, io::Error> {
         let mut req_buf = [0u8; 64];
         let mut res_buf = [0u8; 64];
 
@@ -77,7 +93,7 @@ impl<'a> Pinger<'a> {
         self.tx.set_ttl(ttl).expect("set ttl");
         let sent_at = Instant::now();
         match self.tx.send_to(packet, IpAddr::V4(*dst)) {
-            Ok(sent) => (), //println!("sent {:} bytes with ttl={:}", sent, ttl),
+            Ok(sent) => println!("sent {:} bytes with ttl={:}", sent, ttl),
             Err(e) => {
                 println!("error sending {:}", e);
                 return Err(e)
@@ -86,7 +102,7 @@ impl<'a> Pinger<'a> {
         loop { // loop until timeout or we recieved the packet
             match self.rx.next() {
                 Ok((res, addr)) => {
-                    // println!("recieved {:?} from {:}", &res, addr);
+                    println!("recieved {:?} from {:}", &res, addr);
                     match res.get_icmp_type() {
                         IcmpTypes::TimeExceeded => (),
                         IcmpTypes::EchoReply => {
@@ -97,9 +113,12 @@ impl<'a> Pinger<'a> {
                         }
                         _ => continue
                     }
-                    return Ok((time_diff(sent_at), addr))
+                    return Ok(time_diff(sent_at))
                 },
-                Err(e) => return Err(e),
+                Err(e) => {
+                    println!("error recieving {:}", e);
+                    return Err(e)
+                },
             }
         }
     }
@@ -111,22 +130,15 @@ fn traceroute(dst: &Ipv4Addr) -> Result<(), io::Error> {
     let rx = icmp_packet_iter(&mut rx);
     let mut pinger = Pinger::new(tx, rx);
 
-    println!("traceroute to ??? ({:}), {:} hops max, {:} byte packets",
-        dst, MAX_TTL, 64
-    );
-    for ttl in 1..MAX_TTL {
-        for i in 0..3 {
+    // for ttl in 1..DEFAULT_TTL { // do this 3 times
+    for ttl in 1..65 { // do this 3 times
+        for _ in 0..3 {
             match pinger.ping(dst, ttl) {
-                Ok((time, addr)) => {
-                    if i == 0 {
-                        print!(" {:2} ??? ({:}) ", ttl, addr)
-                    }
-                    print!(" {:} ms ", time)
-                },
+                Ok(time) => print!("{:} ms", time),
                 Err(e) => println!("error {:}", e),
             }
+            println!("");
         }
-        println!("");
     }
     Ok(())
 }
@@ -134,4 +146,22 @@ fn traceroute(dst: &Ipv4Addr) -> Result<(), io::Error> {
 fn main() -> Result<(), io::Error> {
     let dst = Ipv4Addr::new(157,240,22,35); //TODO: resolve host, FQHN, ip
     traceroute(&dst)
+
+    // let mut rx = icmp_packet_iter(&mut rx);
+
+    // let mut icmpbuf = vec![0u8; 16];
+    // let mut p = MutableEchoRequestPacket::new(&mut icmpbuf[..]).expect("echo packet");
+    // p.set_icmp_type(icmp::IcmpTypes::EchoRequest);
+    // p.set_sequence_number(1);
+    // p.set_identifier(1);
+    // p.set_payload(&[1u8; 16-8]);
+    // let cksum = checksum(&p.packet_mut(), 1);
+    // p.set_checksum(cksum);
+
+    // println!("sending {:?}", &p);
+    // tx.send_to(p, IpAddr::V4(dst)).expect("send");
+    // loop {
+    //     let packet = rx.next().expect("next packet");
+    //     println!("recieved {:?}", packet);
+    // };
 }
