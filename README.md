@@ -3,6 +3,12 @@ A simple implementation of the traceroute command in rust.
 
 The program prints the path taken through the IP network from the source to the destination host, each line coresponding to a network gateway (physical device).
 
+It is implemented by repeatedly sending IMCP ECHO packets to the destination with ttl(time to live) values increasing from 1 to 64. Ttl values are decremented by 1 at each gateway, and packets return as ICMP TIME_EXCEEDED packets when their ttl reaches 0. So by starting with ttl=1, we obtain the IP address and round trip time of all devices on the path to the host.
+
+## Usage
+
+`usage: ./traceroute host`
+
 ## Quick start
 
 ```sh
@@ -25,7 +31,7 @@ traceroute to google.com (216.58.194.174), 64 hops max, 64 byte packets
  11 100ge14-1.core1.sjc2.he.net (184.105.213.157) 4.258 4.258 ms  4.638 ms  4.279 ms
  12 eqixsj-google-gige.google.com (206.223.116.21) 6.961 6.961 ms  4.526 ms  5.94 ms
  13 108.170.242.241 (108.170.242.241) 6.113 6.113 ms  6.294 ms  5.844 ms
- 14 ??? (108.170.237.23) 5.296 5.296 ms  4.794 ms  4.909 ms
+ 14 108.170.237.23 (108.170.237.23) 5.296 5.296 ms  4.794 ms  4.909 ms
  15 sfo07s13-in-f14.1e100.net (216.58.194.174) 4.709 4.709 ms  5.062 ms  5.178 ms
 ```
 
@@ -38,11 +44,3 @@ eval $(docker-machine env traceroute)
 docker build -t local/traceroute .
 docker run -itv `pwd`:/ping local/traceroute
 ```
-
-## Usage
-
-`usage: ./traceroute host`
-
-## Implementation
-
-The command is implemented by repeatedly sending IMCP ECHO packets to the destination with ttl values increasing from 1 to 64. Ttl values are decremented by 1 at each gateway, and packets return as ICMP TIME_EXCEEDED packets when ttl reaches 0. So by starting with ttl=1, we can obtain the IP address and round trip time of all devices on the path to the host.
