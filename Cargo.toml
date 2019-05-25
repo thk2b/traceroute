@@ -5,3 +5,4 @@ authors = ["thk2b <theokobb@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+pnet = "^0.22.0"
