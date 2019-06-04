@@ -35,7 +35,7 @@ fn new_echo_packet(buf: &mut [u8], ttl: u8) -> MutableEchoRequestPacket {
     p.set_icmp_type(icmp::IcmpTypes::EchoRequest);
     p.set_sequence_number(ttl.into());
     p.set_identifier(std::process::id() as u16);
-    p.set_payload(&[0u8; 16-8]);
+    p.set_payload(&[0u8; 8]);
     let cksum = checksum(&p.packet_mut(), 1);
     p.set_checksum(cksum);
     p
