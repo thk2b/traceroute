@@ -42,5 +42,5 @@ docker-machine create --driver virtualbox traceroute
 docker-machine start traceroute
 eval $(docker-machine env traceroute)
 docker build -t local/traceroute .
-docker run -itv `pwd`:/ping local/traceroute
+docker run -itv `pwd`:/traceroute local/traceroute
 ```
